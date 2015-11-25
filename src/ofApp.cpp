@@ -5,6 +5,7 @@
 #define FLOW_WIDTH 320
 #define FLOW_HEIGHT 240
 #define DAMPING 0.8
+#define MAXVEL 50.0
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -116,6 +117,10 @@ void ofApp::update(){
 
             seedVels[i] += flow->getAverageFlowInRegion(ofRectangle(projX - 1, projY - 1, 2, 2));
             seedVels[i] *= DAMPING;
+            if(seedVels[i].length() > MAXVEL) {
+                seedVels[i].normalize();
+                seedVels[i] *= MAXVEL;
+            }
             seedVels[i] = (seedVels[i].length() < 1) ? initVels[i] : seedVels[i];
             if(seedLocs[i].x < 0 || seedLocs[i].x > WIDTH) {
                 seedVels[i].x *= -1;
