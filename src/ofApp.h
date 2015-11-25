@@ -25,17 +25,21 @@ class ofApp : public ofBaseApp{
     ofShader* voronoi;
     ofShader* blurVert;
     ofShader* blurHor;
+    ofShader* fade;
     vector<ofVec2f> seedLocs;
     vector<ofVec3f> seedCols;
     vector<ofVec2f> seedVels;
     vector<ofVec2f> initVels;
-    ofFbo blurOnePass, blurTwoPass;
-    ofImage sunflower;
+    vector<string> ImageNames;
+    ofFbo blurOnePass, blurTwoPass, fadePass;
+    ofImage displayImgs[2], flowImg;
+    float fadeAmnt;
     bool animating;
     ofVideoGrabber cam;
     
-    int noiseX = 1000;
-    int noiseY = 10000;
+    int currentTime;
+    
+    int currImg, imageIterator;
     
     ofxCv::FlowFarneback* flow;
 };

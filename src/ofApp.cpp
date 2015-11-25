@@ -11,10 +11,29 @@ void ofApp::setup(){
     voronoi = new ofShader();
     blurVert = new ofShader();
     blurHor = new ofShader();
+    fade = new ofShader();
     
+    fadeAmnt = 0.0;
+    
+    currImg = 0;
+    
+    imageIterator = 0;
+    
+    ofDirectory imagesDir("Images");
+    imagesDir.allowExt("png");
+    imagesDir.allowExt("jpg");
+    imagesDir.allowExt("jpeg");
+    imagesDir.allowExt("gif");
+    imagesDir.listDir();
+    for(int i=0; i < imagesDir.numFiles(); i++) {
+        string path = imagesDir.getPath(i);
+        ImageNames.push_back(path);
+    }
+        
     voronoi->load("Shaders/DummyVert.glsl", "Shaders/VoronoiFrag.glsl");
     blurVert->load("Shaders/DummyVert.glsl", "Shaders/GaussianFragVert.glsl");
     blurHor->load("Shaders/DummyVert.glsl", "Shaders/GaussianFragHor.glsl");
+    fade->load("Shaders/DummyVert.glsl", "Shaders/FadeFrag.glsl");
     seedLocs.resize(NUM_SEEDS);
     seedCols.resize(NUM_SEEDS);
     seedVels.resize(NUM_SEEDS);
@@ -22,7 +41,7 @@ void ofApp::setup(){
     for(int i=0; i < NUM_SEEDS; i++) {
         ofVec2f loc = ofVec2f(ofRandom(WIDTH), ofRandom(HEIGHT));
         ofVec3f col = ofVec3f(ofRandom(255), ofRandom(255), ofRandom(255));
-        ofVec2f vel = ofVec2f(ofRandom(-0.5, 0.5), ofRandom(-0.5, 0.5));
+        ofVec2f vel = ofVec2f(ofRandom(-1.0, 1.0), ofRandom(-1.0, 1.0));
         seedLocs[i] = loc;
         seedCols[i] = col;
         seedVels[i] = vel;
@@ -31,13 +50,29 @@ void ofApp::setup(){
     
     blurOnePass.allocate(WIDTH, HEIGHT);
     blurTwoPass.allocate(WIDTH, HEIGHT);
-
+    fadePass.allocate(WIDTH, HEIGHT);
+    
     animating  = true;
     
-    //sunflower.loadImage("Images/monaLisa.jpeg");
+    for(int i = 0; i < ImageNames.size(); i++) {
+        ofImage img;
+        img.loadImage(ImageNames[i]);
+        if(img.width != WIDTH || img.height != HEIGHT) img.resize(WIDTH, HEIGHT);
+        vector<string> name = ofSplitString(ImageNames[i], "/");
+        img.saveImage(ImageNames[i]);
+    }
+    displayImgs[imageIterator].loadImage(ImageNames[imageIterator]);
+    imageIterator++;
+    imageIterator%=ImageNames.size();
+    displayImgs[imageIterator].loadImage(ImageNames[imageIterator]);
+    imageIterator++;
+    imageIterator%=ImageNames.size();
     cam.initGrabber(FLOW_WIDTH, FLOW_HEIGHT);
+    cam.listDevices();
     
     flow = new ofxCv::FlowFarneback();
+    
+    currentTime = ofGetElapsedTimef();
 }
 
 //--------------------------------------------------------------
@@ -45,8 +80,8 @@ void ofApp::update(){
     cam.update();
     if(cam.isFrameNew()) {
         
-        sunflower.setFromPixels(cam.getPixelsRef());
-        sunflower.mirror(false, true);
+        flowImg.setFromPixels(cam.getPixelsRef());
+        flowImg.mirror(false, true);
         
         flow->setPyramidScale( 0.5 );
         flow->setNumLevels( 4 );
@@ -56,10 +91,22 @@ void ofApp::update(){
         flow->setPolySigma( 1.5 );
         flow->setUseGaussian(false);
         
-        flow->calcOpticalFlow(sunflower);
+        flow->calcOpticalFlow(flowImg);
     }
-    //sunflower.setFromPixels(cam.getPixelsR(), WIDTH, HEIGHT, OF_IMAGE_COLOR_ALPHA);
-    //sunflower.mirror(false, true);
+    
+    if(fadeAmnt > 0.0 || ofGetElapsedTimef() - currentTime > 20) {
+        fadeAmnt += 0.01;
+        if(fadeAmnt > 1.0) {
+            fadeAmnt = 0.0;
+            displayImgs[0] = displayImgs[1];
+            displayImgs[1].loadImage(ImageNames[imageIterator]);
+            displayImgs[(currImg+1)%2].loadImage(ImageNames[imageIterator]);
+            imageIterator++;
+            imageIterator %= ImageNames.size();
+        }
+        currentTime = ofGetElapsedTimef();
+    }
+    
     if(animating) {
         for(int i=0; i < seedLocs.size(); i++) {
             seedLocs[i] += seedVels[i];
@@ -86,11 +133,30 @@ void ofApp::update(){
 //--------------------------------------------------------------
 void ofApp::draw(){
     
+    fadePass.begin();
+        ofClear(0);
+        ofEnableAlphaBlending();
+        ofRect(0, 0, ofGetWidth(), ofGetHeight());
+        fade->begin();
+            fade->setUniformTexture("texOut", displayImgs[0].getTextureReference(), 0);
+            fade->setUniformTexture("texIn", displayImgs[1].getTextureReference(), 1);
+            fade->setUniform1f("fadeAmnt", fadeAmnt);
+            displayImgs[0].draw(0, 0, WIDTH, HEIGHT);
+//            if( displayImgs[currImg].width < displayImgs[(currImg+1)%2].width)
+//                displayImgs[currImg].draw(0, 0, WIDTH, HEIGHT);
+//            else
+//                displayImgs[(currImg+1)%2].draw(0, 0, WIDTH, HEIGHT);
+
+        fade->end();
+    fadePass.end();
+    
+//    fadePass.draw(0, 0);
+    
     blurOnePass.begin();
         ofClear(0);
         blurVert->begin();
             blurVert->setUniform1f("blurAmnt", 10.0);
-            sunflower.draw(0, 0, WIDTH, HEIGHT);
+            fadePass.draw(0, 0);
         blurVert->end();
     blurOnePass.end();
     
@@ -102,16 +168,22 @@ void ofApp::draw(){
         blurHor->end();
     blurTwoPass.end();
     
+    
     voronoi->begin();
         voronoi->setUniform2fv("locs", (float *)&seedLocs[0], seedLocs.size());
         blurTwoPass.draw(0, 0);
     voronoi->end();
+    fadePass.draw(0, 0, 500, 500);
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     if(key == ' ') {
         animating = !animating;
+    }
+    if(key == 'f') {
+        fadeAmnt += 0.1;
+        if(fadeAmnt > 1.0) fadeAmnt = 0.0;
     }
 }
 
