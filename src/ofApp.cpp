@@ -57,9 +57,10 @@ void ofApp::setup(){
     for(int i = 0; i < ImageNames.size(); i++) {
         ofImage img;
         img.loadImage(ImageNames[i]);
-        if(img.width != WIDTH || img.height != HEIGHT) img.resize(WIDTH, HEIGHT);
-        vector<string> name = ofSplitString(ImageNames[i], "/");
-        img.saveImage(ImageNames[i]);
+        if(img.width != WIDTH || img.height != HEIGHT) {
+            img.resize(WIDTH, HEIGHT);
+            img.saveImage(ImageNames[i]);
+        }
     }
     displayImgs[imageIterator].loadImage(ImageNames[imageIterator]);
     imageIterator++;
@@ -173,17 +174,12 @@ void ofApp::draw(){
         voronoi->setUniform2fv("locs", (float *)&seedLocs[0], seedLocs.size());
         blurTwoPass.draw(0, 0);
     voronoi->end();
-    fadePass.draw(0, 0, 500, 500);
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     if(key == ' ') {
         animating = !animating;
-    }
-    if(key == 'f') {
-        fadeAmnt += 0.1;
-        if(fadeAmnt > 1.0) fadeAmnt = 0.0;
     }
 }
 
