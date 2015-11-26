@@ -35,6 +35,7 @@ class ofApp : public ofBaseApp{
     ofImage displayImgs[2], flowImg;
     float fadeAmnt;
     bool animating;
+    bool cheating;
     ofVideoGrabber cam;
     
     int currentTime;

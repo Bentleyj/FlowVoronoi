@@ -16,6 +16,8 @@ void ofApp::setup(){
     
     fadeAmnt = 0.0;
     
+    cheating = false;
+    
     currImg = 0;
     
     imageIterator = 0;
@@ -59,6 +61,7 @@ void ofApp::setup(){
         ofImage img;
         img.loadImage(ImageNames[i]);
         if(img.width != WIDTH || img.height != HEIGHT) {
+            img.saveImage("originalSizes/" + ofSplitString(ImageNames[i], "/")[1]);
             img.resize(WIDTH, HEIGHT);
             img.saveImage(ImageNames[i]);
         }
@@ -179,12 +182,16 @@ void ofApp::draw(){
         voronoi->setUniform2fv("locs", (float *)&seedLocs[0], seedLocs.size());
         blurTwoPass.draw(0, 0);
     voronoi->end();
+    
+    if(cheating) {
+        fadePass.draw(0, 0, WIDTH/4, HEIGHT/4);
+    }
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     if(key == ' ') {
-        animating = !animating;
+        cheating = !cheating;
     }
 }
 
